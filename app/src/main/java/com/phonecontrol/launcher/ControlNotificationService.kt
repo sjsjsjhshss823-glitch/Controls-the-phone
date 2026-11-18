@@ -24,6 +24,7 @@ class ControlNotificationService : Service() {
             .setContentTitle("Phone Control")
             .setContentText("שליטה מהירה בטלפון")
             .setOngoing(true)
+            .addAction(action("🔴 כיבוי", MainActivity.ACTION_POWER_MENU, 4))
             .addAction(action("🔒 נעילה", MainActivity.ACTION_LOCK, 1))
             .addAction(action("🔄 סיבוב", MainActivity.ACTION_ROTATE, 2))
             .addAction(action("📸 צילום מסך", MainActivity.ACTION_SCREENSHOT, 3))

@@ -438,11 +438,18 @@ class MainActivity : Activity() {
     }
 
     private fun showDoubleTapHelp() {
-        val message = "נעילת מסך: הפעל את שירות הנגישות של Phone Control. לאחר מכן, שתי הקשות מהירות על אזור ריק במסך הבית ינעלו את המסך.\n\nהדלקה בהקשה כפולה כשהמסך כבוי תלויה בתמיכת מערכת הטלפון. חפש בהגדרות: 'הקשה כפולה להעיר' או 'Double tap to wake'."
+        val message = "כדי לנעול בהקשה כפולה ממסך הבית: הפעל את שירות הנגישות של Phone Control ובחר ב־Phone Control כאפליקציית מסך הבית (Launcher) ברירת המחדל. לאחר מכן הקשה כפולה על אזור ריק במסך הבית של Phone Control תנעל את המסך.\n\nחשוב: Android לא מאפשר לאפליקציה רגילה לזהות הקשה כפולה בכל אפליקציה אחרת בלי להשתלט על פעולות המגע. לכן ההקשה הכפולה אינה פועלת בתוך WhatsApp או אפליקציות אחרות.\n\nהדלקה בהקשה כפולה כשהמסך כבוי תלויה בתמיכת המכשיר ובהגדרות Android."
         android.app.AlertDialog.Builder(this)
-            .setTitle("הקשה כפולה")
+            .setTitle("הקשה כפולה לנעילה")
             .setMessage(message)
-            .setPositiveButton("פתיחת הגדרות נגישות") { _, _ -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+            .setPositiveButton("הפעלת שירות נגישות") { _, _ -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+            .setNeutralButton("בחירת מסך הבית") { _, _ ->
+                try {
+                    startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
+                } catch (e: Exception) {
+                    startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME))
+                }
+            }
             .setNegativeButton("סגור", null)
             .show()
     }

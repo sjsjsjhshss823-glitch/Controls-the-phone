@@ -44,6 +44,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        DiagnosticLogger.initialize(this)
+        DiagnosticLogger.record(this, "ACTIVITY_ON_CREATE", "savedState=${savedInstanceState != null}; action=${intent?.action}")
         window.statusBarColor = Color.rgb(15, 19, 35)
         window.navigationBarColor = Color.rgb(15, 19, 35)
         window.decorView.systemUiVisibility = 0
@@ -57,6 +59,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        DiagnosticLogger.record(this, "ACTIVITY_ON_RESUME", "drawerOpen=$drawerOpen")
         if (Settings.canDrawOverlays(this)) {
             startService(Intent(this, FloatingControlService::class.java))
         }
@@ -73,11 +76,13 @@ class MainActivity : Activity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        DiagnosticLogger.record(this, "ACTIVITY_ON_NEW_INTENT", "action=${intent.action}")
         setIntent(intent)
         handleControlAction(intent)
     }
 
     private fun handleControlAction(intent: Intent?) {
+        DiagnosticLogger.record(this, "CONTROL_ACTION_RECEIVED", "action=${intent?.action ?: "none"}")
         when (intent?.action) {
             ACTION_LOCK -> lockScreen()
             ACTION_POWER_MENU -> showSystemPowerMenu()
@@ -87,6 +92,7 @@ class MainActivity : Activity() {
     }
 
     private fun toggleRotation() {
+        DiagnosticLogger.record(this, "ROTATION_REQUESTED", "canWrite=${Settings.System.canWrite(this)}")
         if (!Settings.System.canWrite(this)) {
             Toast.makeText(this, "יש לאשר שינוי הגדרות מערכת כדי לשלוט בסיבוב", Toast.LENGTH_LONG).show()
             startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
@@ -101,6 +107,7 @@ class MainActivity : Activity() {
     }
 
     private fun requestScreenshot() {
+        DiagnosticLogger.record(this, "SCREENSHOT_REQUESTED", "Launching Android MediaProjection consent")
         val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         @Suppress("DEPRECATION") startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_CAPTURE)
     }
@@ -108,7 +115,12 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated Android callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != REQUEST_CAPTURE || resultCode != RESULT_OK || data == null) return
+        if (requestCode != REQUEST_CAPTURE) return
+        DiagnosticLogger.record(this, "SCREENSHOT_PERMISSION_RESULT", "resultCode=$resultCode; dataPresent=${data != null}")
+        if (resultCode != RESULT_OK || data == null) {
+            DiagnosticLogger.record(this, "SCREENSHOT_CANCELLED", "User denied or cancelled screen capture consent")
+            return
+        }
         try {
             val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             val projection = manager.getMediaProjection(resultCode, data)
@@ -135,12 +147,13 @@ class MainActivity : Activity() {
                         val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
                         uri?.let { contentResolver.openOutputStream(it)?.use { out -> cropped.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out) } }
                         bitmap.recycle(); cropped.recycle()
+                        DiagnosticLogger.record(this, if (uri != null) "SCREENSHOT_SAVED" else "SCREENSHOT_SAVE_FAILED", "uri=$uri")
                         Toast.makeText(this, if (uri != null) "צילום המסך נשמר בתמונות" else "שמירת צילום המסך נכשלה", Toast.LENGTH_LONG).show()
-                    } else Toast.makeText(this, "לא התקבל צילום מסך", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) { Toast.makeText(this, "שגיאה בצילום המסך: ${e.message}", Toast.LENGTH_LONG).show() }
+                    } else { DiagnosticLogger.record(this, "SCREENSHOT_EMPTY", "ImageReader returned null image"); Toast.makeText(this, "לא התקבל צילום מסך", Toast.LENGTH_SHORT).show() }
+                } catch (e: Exception) { DiagnosticLogger.exception(this, "SCREENSHOT_CAPTURE_EXCEPTION", e); Toast.makeText(this, "שגיאה בצילום המסך: ${e.message}", Toast.LENGTH_LONG).show() }
                 finally { display?.release(); reader.close(); projection.stop() }
             }, 450)
-        } catch (e: Exception) { Toast.makeText(this, "לא ניתן לצלם מסך: ${e.message}", Toast.LENGTH_LONG).show() }
+        } catch (e: Exception) { DiagnosticLogger.exception(this, "SCREENSHOT_SETUP_EXCEPTION", e); Toast.makeText(this, "לא ניתן לצלם מסך: ${e.message}", Toast.LENGTH_LONG).show() }
     }
 
     private fun loadApps() {
@@ -219,11 +232,21 @@ class MainActivity : Activity() {
             setPadding(24, 16, 24, 16)
             setOnClickListener { showDoubleTapHelp() }
         }
+        val diagnostics = TextView(this).apply {
+            text = "🐞  דיווח שגיאה — העתקת דוח מלא"
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = rounded(Color.rgb(125, 48, 58), 24f)
+            setPadding(18, 16, 18, 16)
+            setOnClickListener { DiagnosticLogger.copyReport(this@MainActivity) }
+        }
         homePanel.addView(clock)
         homePanel.addView(title)
         homePanel.addView(hint)
         homePanel.addView(handle)
-        homePanel.addView(settings, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 46 })
+        homePanel.addView(settings, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 34 })
+        homePanel.addView(diagnostics, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 12 })
         homePanel.setOnTouchListener { _, event -> handleHomeTouch(event) }
         root.addView(homePanel, FrameLayout.LayoutParams(-1, -1))
 
@@ -413,6 +436,7 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Android")
     override fun onBackPressed() {
+        DiagnosticLogger.record(this, "BACK_PRESSED", "drawerOpen=$drawerOpen")
         if (drawerOpen) showHome() else super.onBackPressed()
     }
 }

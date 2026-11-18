@@ -15,6 +15,7 @@ import android.provider.Settings
 import android.text.format.DateFormat
 import android.util.Log
 import android.widget.Toast
+import android.view.accessibility.AccessibilityManager
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -85,6 +86,8 @@ object DiagnosticLogger {
         val power = app.getSystemService(Context.POWER_SERVICE) as PowerManager
         val cm = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val activeNetwork = try { cm.activeNetworkInfo?.let { "connected=${it.isConnected}, type=${it.typeName}, state=${it.state}" } ?: "none" } catch (e: Exception) { "error: ${e.message}" }
+        val touchExplorationEnabled = try { (app.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager).isTouchExplorationEnabled } catch (e: Exception) { "error: ${e.message}" }
+        val serviceConnected = ScreenLockAccessibilityService.activeService != null
         val accessibilityEnabled = try {
             Settings.Secure.getInt(app.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1
         } catch (_: Exception) { false }
@@ -125,6 +128,10 @@ object DiagnosticLogger {
             appendLine("Network: $activeNetwork")
             appendLine("Accessibility enabled globally: $accessibilityEnabled")
             appendLine("Enabled accessibility services: $enabledServices")
+            appendLine("Touch exploration mode active: $touchExplorationEnabled")
+            appendLine("Phone Control accessibility service connected in process: $serviceConnected")
+            appendLine("Double-tap detection: AccessibilityService.onGesture + FLAG_REQUEST_TOUCH_EXPLORATION_MODE")
+            appendLine("Touch exploration changes touch interaction system-wide while enabled.")
             appendLine("Overlay permission: ${Settings.canDrawOverlays(app)}")
             appendLine("Write system settings permission: ${Settings.System.canWrite(app)}")
             appendLine("Notification permission: ${if (Build.VERSION.SDK_INT >= 33) app.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED else "not required"}")

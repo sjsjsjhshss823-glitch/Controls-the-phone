@@ -54,7 +54,7 @@ class MainActivity : Activity() {
         loadApps()
         buildInterface()
         startService(Intent(this, ControlNotificationService::class.java))
-        ensureOverlayControls()
+        stopService(Intent(this, FloatingControlService::class.java))
         handleControlAction(intent)
         showHome()
     }
@@ -62,18 +62,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         DiagnosticLogger.record(this, "ACTIVITY_ON_RESUME", "drawerOpen=$drawerOpen")
-        if (Settings.canDrawOverlays(this)) {
-            startService(Intent(this, FloatingControlService::class.java))
-        }
-    }
-
-    private fun ensureOverlayControls() {
-        if (Settings.canDrawOverlays(this)) {
-            startService(Intent(this, FloatingControlService::class.java))
-        } else {
-            Toast.makeText(this, "כדי להציג את מסך השליטה מעל כל אפליקציה, יש לאשר הצגה מעל אפליקציות אחרות", Toast.LENGTH_LONG).show()
-            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-        }
+        stopService(Intent(this, FloatingControlService::class.java))
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -485,19 +474,12 @@ class MainActivity : Activity() {
     }
 
     private fun showDoubleTapHelp() {
-        val message = "כדי לנעול בהקשה כפולה ממסך הבית: הפעל את שירות הנגישות של Phone Control ובחר ב־Phone Control כאפליקציית מסך הבית (Launcher) ברירת המחדל. לאחר מכן הקשה כפולה על אזור ריק במסך הבית של Phone Control תנעל את המסך.\n\nחשוב: Android לא מאפשר לאפליקציה רגילה לזהות הקשה כפולה בכל אפליקציה אחרת בלי להשתלט על פעולות המגע. לכן ההקשה הכפולה אינה פועלת בתוך WhatsApp או אפליקציות אחרות.\n\nהדלקה בהקשה כפולה כשהמסך כבוי תלויה בתמיכת המכשיר ובהגדרות Android."
+        val message = "Phone Control ינסה לזהות הקשה כפולה גם כאשר מסך הבית המקורי של Pixel פתוח, באמצעות שירות הנגישות של Android.\n\nלזיהוי המחווה Android דורש מצב נגישות מיוחד בשם Touch Exploration. מצב זה משנה את אופן פעולת המגע בכל הטלפון: נגיעה עשויה לבחור פריט והקשה כפולה להפעיל אותו. הדבר עלול לשנות את אופן השימוש הרגיל. אפשר לכבות את השירות בכל עת בהגדרות הנגישות.\n\nלא נחליף את מסך הבית של Pixel ולא נציג כפתור צף. אחרי הפעלת השירות, נסה הקשה כפולה במסך הבית. הדוח יתעד אם המחווה הגיעה לשירות ואם בקשת הנעילה התקבלה."
         android.app.AlertDialog.Builder(this)
             .setTitle("הקשה כפולה לנעילה")
             .setMessage(message)
-            .setPositiveButton("הפעלת שירות נגישות") { _, _ -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-            .setNeutralButton("בחירת מסך הבית") { _, _ ->
-                try {
-                    startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
-                } catch (e: Exception) {
-                    startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME))
-                }
-            }
-            .setNegativeButton("סגור", null)
+            .setPositiveButton("פתיחת הגדרות נגישות") { _, _ -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+            .setNegativeButton("ביטול", null)
             .show()
     }
 

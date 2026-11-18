@@ -38,6 +38,7 @@ class MainActivity : Activity() {
     private var downY = 0f
     private var downX = 0f
     private var lastTap = 0L
+    private var gridColumns = 5
 
     private data class AppEntry(val label: String, val packageName: String, val icon: android.graphics.drawable.Drawable)
     private val allApps = mutableListOf<AppEntry>()
@@ -49,6 +50,7 @@ class MainActivity : Activity() {
         window.statusBarColor = Color.rgb(15, 19, 35)
         window.navigationBarColor = Color.rgb(15, 19, 35)
         window.decorView.systemUiVisibility = 0
+        gridColumns = getSharedPreferences("phone_control_layout", MODE_PRIVATE).getInt("grid_columns", 5).coerceIn(4, 6)
         loadApps()
         buildInterface()
         startService(Intent(this, ControlNotificationService::class.java))
@@ -278,23 +280,16 @@ class MainActivity : Activity() {
 
         drawerPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(18, 24, 18, 10)
+            setPadding(0, 10, 0, 0)
             visibility = View.GONE
             setBackgroundColor(Color.rgb(20, 25, 44))
         }
-        val drawerTitle = TextView(this).apply {
-            text = "כל האפליקציות"
-            textSize = 25f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(4, 4, 4, 18)
-        }
+        // Compact, edge-to-edge app drawer header: no redundant "all apps" title.
         val searchRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = rounded(Color.rgb(39, 47, 72), 18f)
-            setPadding(12, 2, 8, 2)
+            background = rounded(Color.rgb(39, 47, 72), 22f)
+            setPadding(14, 2, 8, 2)
         }
         search = EditText(this).apply {
             this.hint = "חיפוש אפליקציות..."
@@ -320,14 +315,50 @@ class MainActivity : Activity() {
         }
         searchRow.addView(search, LinearLayout.LayoutParams(0, 52, 1f))
         searchRow.addView(clearButton, LinearLayout.LayoutParams(42, 52))
-        appsGrid = GridLayout(this).apply { columnCount = 4; useDefaultMargins = true }
+        val layoutControls = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(12, 8, 12, 4)
+        }
+        val layoutButtons = mutableListOf<TextView>()
+        fun refreshLayoutButtons() {
+            layoutButtons.forEachIndexed { index, button ->
+                val columns = index + 4
+                val selected = gridColumns == columns
+                button.background = rounded(if (selected) Color.rgb(83, 105, 210) else Color.rgb(35, 43, 66), 18f)
+                button.setTextColor(if (selected) Color.WHITE else Color.rgb(190, 199, 222))
+                button.alpha = if (selected) 1f else 0.82f
+            }
+        }
+        (4..6).forEach { columns ->
+            val button = TextView(this).apply {
+                text = "$columns בעמודה"
+                textSize = 12f
+                gravity = Gravity.CENTER
+                setPadding(12, 9, 12, 9)
+                setOnClickListener {
+                    gridColumns = columns
+                    getSharedPreferences("phone_control_layout", MODE_PRIVATE).edit().putInt("grid_columns", columns).apply()
+                    appsGrid.columnCount = gridColumns
+                    refreshLayoutButtons()
+                    renderApps(search.text?.toString().orEmpty())
+                    DiagnosticLogger.record(this@MainActivity, "APP_DRAWER_LAYOUT_CHANGED", "columns=$columns")
+                }
+            }
+            layoutButtons.add(button)
+            layoutControls.addView(button, LinearLayout.LayoutParams(0, -2, 1f).apply {
+                if (columns != 4) marginStart = 6
+            })
+        }
+        refreshLayoutButtons()
+        appsGrid = GridLayout(this).apply { columnCount = gridColumns; useDefaultMargins = false }
         val scroll = ScrollView(this).apply {
             isFillViewport = true
             addView(appsGrid)
         }
-        drawerPanel.addView(drawerTitle)
-        drawerPanel.addView(searchRow)
-        drawerPanel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = 16 })
+        drawerPanel.addView(searchRow, LinearLayout.LayoutParams(-1, -2).apply { marginStart = 12; marginEnd = 12 })
+        drawerPanel.addView(layoutControls)
+        drawerPanel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         root.addView(drawerPanel, FrameLayout.LayoutParams(-1, -1))
         search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -358,17 +389,29 @@ class MainActivity : Activity() {
     }
 
     private fun openDrawer() {
+        if (drawerOpen) return
         drawerOpen = true
-        homePanel.visibility = View.GONE
-        drawerPanel.visibility = View.VISIBLE
         search.setText("")
         renderApps("")
+        drawerPanel.alpha = 0f
+        drawerPanel.translationY = 34f
+        drawerPanel.visibility = View.VISIBLE
+        homePanel.animate().cancel()
+        homePanel.animate().alpha(0f).setDuration(110).withEndAction { homePanel.visibility = View.GONE }.start()
+        drawerPanel.animate().alpha(1f).translationY(0f).setDuration(260)
+            .setInterpolator(android.view.animation.DecelerateInterpolator()).start()
     }
 
     private fun showHome() {
         drawerOpen = false
-        drawerPanel.visibility = View.GONE
+        drawerPanel.animate().cancel()
+        drawerPanel.animate().alpha(0f).translationY(24f).setDuration(150).withEndAction {
+            drawerPanel.visibility = View.GONE
+            drawerPanel.translationY = 0f
+        }.start()
         homePanel.visibility = View.VISIBLE
+        homePanel.alpha = 0f
+        homePanel.animate().alpha(1f).setDuration(180).start()
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(root.windowToken, 0)
     }
 
@@ -379,7 +422,7 @@ class MainActivity : Activity() {
             val item = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                setPadding(4, 12, 4, 12)
+                setPadding(1, 8, 1, 8)
                 setOnClickListener {
                     val launch = packageManager.getLaunchIntentForPackage(app.packageName)
                     if (launch != null) startActivity(launch)
@@ -389,22 +432,26 @@ class MainActivity : Activity() {
                 setImageDrawable(app.icon)
                 scaleType = ImageView.ScaleType.FIT_CENTER
             }
-            item.addView(icon, LinearLayout.LayoutParams(52, 52))
+            val iconSize = if (gridColumns >= 6) 40 else if (gridColumns == 5) 46 else 52
+            item.addView(icon, LinearLayout.LayoutParams(iconSize, iconSize))
             val label = TextView(this).apply {
                 text = app.label
                 textSize = 11.5f
                 setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
                 maxLines = 2
-                setPadding(0, 7, 0, 0)
+                setPadding(1, 5, 1, 0)
             }
             item.addView(label, LinearLayout.LayoutParams(-1, 42))
+            item.alpha = 0f
             appsGrid.addView(item, GridLayout.LayoutParams().apply {
                 width = 0
                 height = GridLayout.LayoutParams.WRAP_CONTENT
                 columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                setMargins(3, 4, 3, 4)
+                setMargins(0, 3, 0, 3)
             })
+            val index = appsGrid.childCount - 1
+            item.animate().alpha(1f).setStartDelay((index.coerceAtMost(10) * 18L)).setDuration(180).start()
         }
         if (filtered.isEmpty()) {
             val empty = TextView(this).apply {

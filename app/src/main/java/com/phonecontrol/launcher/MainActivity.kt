@@ -460,7 +460,7 @@ class MainActivity : Activity() {
                 setTextColor(Color.LTGRAY)
                 gravity = Gravity.CENTER
             }
-            appsGrid.addView(empty, GridLayout.LayoutParams().apply { width = -1; height = 100; columnSpec = GridLayout.spec(0, 4) })
+            appsGrid.addView(empty, GridLayout.LayoutParams().apply { width = -1; height = 100; columnSpec = GridLayout.spec(0, gridColumns) })
         }
     }
 

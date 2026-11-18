@@ -63,6 +63,7 @@ class MainActivity : Activity() {
     private fun handleControlAction(intent: Intent?) {
         when (intent?.action) {
             ACTION_LOCK -> lockScreen()
+            ACTION_POWER_MENU -> showSystemPowerMenu()
             ACTION_ROTATE -> toggleRotation()
             ACTION_SCREENSHOT -> requestScreenshot()
         }
@@ -350,6 +351,16 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun showSystemPowerMenu() {
+        val service = ScreenLockAccessibilityService.activeService
+        if (service == null) {
+            Toast.makeText(this, "כדי לפתוח את תפריט הכיבוי המקורי, יש להפעיל את שירות הנגישות של Phone Control", Toast.LENGTH_LONG).show()
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        } else if (!service.showSystemPowerMenu()) {
+            Toast.makeText(this, "Android לא אפשר לפתוח את תפריט הכיבוי", Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun lockScreen() {
         val service = ScreenLockAccessibilityService.activeService
         if (service == null) {
@@ -372,6 +383,7 @@ class MainActivity : Activity() {
 
     companion object {
         const val ACTION_LOCK = "com.phonecontrol.ACTION_LOCK"
+        const val ACTION_POWER_MENU = "com.phonecontrol.ACTION_POWER_MENU"
         const val ACTION_ROTATE = "com.phonecontrol.ACTION_ROTATE"
         const val ACTION_SCREENSHOT = "com.phonecontrol.ACTION_SCREENSHOT"
         private const val REQUEST_CAPTURE = 741

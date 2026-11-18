@@ -22,11 +22,14 @@ class FloatingControlService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        DiagnosticLogger.initialize(this)
+        DiagnosticLogger.record(this, "FLOATING_SERVICE_CREATED", "overlayPermission=${Settings.canDrawOverlays(this)}")
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         if (Settings.canDrawOverlays(this)) showBubble() else stopSelf()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        DiagnosticLogger.record(this, "FLOATING_SERVICE_START_COMMAND", "startId=$startId; flags=$flags; bubblePresent=${bubble != null}")
         if (bubble == null && Settings.canDrawOverlays(this)) showBubble()
         return START_STICKY
     }
@@ -93,7 +96,11 @@ class FloatingControlService : Service() {
                 .setAction(MainActivity.ACTION_SCREENSHOT)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
         }, LinearLayout.LayoutParams(0, 58, 1f))
-        val lp = makeParams((resources.displayMetrics.widthPixels - 20).coerceAtMost(360),
+        row.addView(makeButton("🐞", "דיווח", Color.rgb(125, 48, 58)) {
+            removePanel()
+            DiagnosticLogger.copyReport(this)
+        }, LinearLayout.LayoutParams(0, 58, 1f))
+        val lp = makeParams((resources.displayMetrics.widthPixels - 12).coerceAtMost(390),
             WindowManager.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
         lp.x = 0
         lp.y = 110
@@ -136,6 +143,7 @@ class FloatingControlService : Service() {
     }
 
     override fun onDestroy() {
+        DiagnosticLogger.record(this, "FLOATING_SERVICE_DESTROYED", "bubblePresent=${bubble != null}")
         removePanel()
         bubble?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
         bubble = null

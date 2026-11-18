@@ -124,6 +124,7 @@ class MainActivity : Activity() {
         homePanel.addView(hint)
         homePanel.addView(handle)
         homePanel.addView(settings, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 46 })
+        homePanel.setOnTouchListener { _, event -> handleHomeTouch(event) }
         root.addView(homePanel, FrameLayout.LayoutParams(-1, -1))
 
         drawerPanel = LinearLayout(this).apply {
@@ -188,6 +189,23 @@ class MainActivity : Activity() {
             override fun afterTextChanged(s: Editable?) = Unit
         })
         setContentView(root)
+    }
+
+    private fun handleHomeTouch(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> { downY = event.y; downX = event.x; return true }
+            MotionEvent.ACTION_UP -> {
+                val dy = event.y - downY
+                if (dy < -65) openDrawer()
+                else if (abs(dy) < 12 && abs(event.x - downX) < 12) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastTap < 350) lockScreen()
+                    lastTap = now
+                }
+                return true
+            }
+        }
+        return true
     }
 
     private fun openDrawer() {

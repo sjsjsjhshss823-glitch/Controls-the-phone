@@ -15,6 +15,8 @@ class ScreenLockAccessibilityService : AccessibilityService() {
 
     fun lockScreenNow(): Boolean = performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
 
+    fun showSystemPowerMenu(): Boolean = performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
+
     override fun onDestroy() {
         if (activeService === this) activeService = null
         super.onDestroy()

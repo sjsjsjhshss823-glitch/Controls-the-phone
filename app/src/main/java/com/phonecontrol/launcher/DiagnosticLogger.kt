@@ -37,12 +37,14 @@ object DiagnosticLogger {
             if (initialized) return
             initialized = true
             val app = context.applicationContext
+            val prefs = app.getSharedPreferences("phone_control_diagnostics", Context.MODE_PRIVATE)
+            if (!prefs.contains("first_diagnostic_start")) prefs.edit().putString("first_diagnostic_start", Date().toString()).apply()
             val previous = Thread.getDefaultUncaughtExceptionHandler()
             Thread.setDefaultUncaughtExceptionHandler { thread, error ->
                 record(app, "UNCAUGHT_EXCEPTION", "thread=${thread.name}\n${Log.getStackTraceString(error)}")
                 previous?.uncaughtException(thread, error)
             }
-            record(app, "DIAGNOSTICS_STARTED", "Diagnostic history initialized; install/update metadata captured")
+            record(app, "DIAGNOSTICS_STARTED", "Diagnostic history initialized; install/update metadata captured; firstDiagnosticStart=${prefs.getString("first_diagnostic_start", "unknown")}")
         }
     }
 

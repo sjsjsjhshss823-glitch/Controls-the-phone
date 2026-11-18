@@ -11,6 +11,7 @@ import android.widget.Toast
 
 class ControlActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
+        DiagnosticLogger.record(context, "NOTIFICATION_ACTION_RECEIVED", "action=${intent?.action ?: "none"}")
         when (intent?.action) {
             MainActivity.ACTION_LOCK -> lockScreen(context)
             MainActivity.ACTION_POWER_MENU -> showPowerMenu(context)
@@ -19,23 +20,29 @@ class ControlActionReceiver : BroadcastReceiver() {
     }
 
     private fun lockScreen(context: Context) {
+        DiagnosticLogger.record(context, "LOCK_SCREEN_REQUESTED", "accessibilityServiceActive=${ScreenLockAccessibilityService.activeService != null}")
         val service = ScreenLockAccessibilityService.activeService
         if (service?.lockScreenNow() != true) {
+            DiagnosticLogger.record(context, "LOCK_SCREEN_FAILED", "Accessibility service unavailable or global action rejected")
             Toast.makeText(context, "כדי לנעול את המסך, יש להפעיל את שירות הנגישות של Phone Control", Toast.LENGTH_LONG).show()
             openAccessibilitySettings(context)
         }
     }
 
     private fun showPowerMenu(context: Context) {
+        DiagnosticLogger.record(context, "POWER_MENU_REQUESTED", "accessibilityServiceActive=${ScreenLockAccessibilityService.activeService != null}")
         val service = ScreenLockAccessibilityService.activeService
         if (service?.showSystemPowerMenu() != true) {
+            DiagnosticLogger.record(context, "POWER_MENU_FAILED", "Accessibility service unavailable or global action rejected")
             Toast.makeText(context, "כדי לפתוח את תפריט הכיבוי, יש להפעיל את שירות הנגישות של Phone Control", Toast.LENGTH_LONG).show()
             openAccessibilitySettings(context)
         }
     }
 
     private fun rotateScreen(context: Context) {
+        DiagnosticLogger.record(context, "ROTATION_REQUESTED_FROM_CONTROL", "canWrite=${Settings.System.canWrite(context)}")
         if (!Settings.System.canWrite(context)) {
+            DiagnosticLogger.record(context, "ROTATION_FAILED_PERMISSION", "WRITE_SETTINGS not granted")
             Toast.makeText(context, "יש לאשר ל־Phone Control שינוי הגדרות מערכת", Toast.LENGTH_LONG).show()
             val settingsIntent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:${context.packageName}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -66,6 +73,7 @@ class ControlActionReceiver : BroadcastReceiver() {
             Settings.System.USER_ROTATION,
             -1
         )
+        DiagnosticLogger.record(context, if (autoRotateDisabled && rotationWritten && savedRotation == targetRotation) "ROTATION_SUCCEEDED" else "ROTATION_FAILED", "target=$targetRotation; autoRotateDisabled=$autoRotateDisabled; rotationWritten=$rotationWritten; saved=$savedRotation")
         if (autoRotateDisabled && rotationWritten && savedRotation == targetRotation) {
             Toast.makeText(
                 context,

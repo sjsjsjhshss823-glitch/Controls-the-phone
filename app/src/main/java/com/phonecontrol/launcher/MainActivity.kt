@@ -92,18 +92,31 @@ class MainActivity : Activity() {
     }
 
     private fun toggleRotation() {
-        DiagnosticLogger.record(this, "ROTATION_REQUESTED", "canWrite=${Settings.System.canWrite(this)}")
-        if (!Settings.System.canWrite(this)) {
+        val canWrite = Settings.System.canWrite(this)
+        DiagnosticLogger.record(this, "ROTATION_REQUESTED", "canWrite=$canWrite")
+        if (!canWrite) {
+            DiagnosticLogger.record(this, "ROTATION_FAILED_PERMISSION", "WRITE_SETTINGS not granted")
             Toast.makeText(this, "יש לאשר שינוי הגדרות מערכת כדי לשלוט בסיבוב", Toast.LENGTH_LONG).show()
             startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
             return
         }
-        val auto = Settings.System.getInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION, 1) == 1
-        val current = Settings.System.getInt(contentResolver, Settings.System.USER_ROTATION, 0)
-        val next = if (auto || current == 0) 1 else 0
-        Settings.System.putInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION, 0)
-        Settings.System.putInt(contentResolver, Settings.System.USER_ROTATION, next)
-        Toast.makeText(this, if (next == 1) "המסך נעול לרוחב" else "המסך נעול לאורך", Toast.LENGTH_SHORT).show()
+        try {
+            val autoBefore = Settings.System.getInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION, 1)
+            val current = Settings.System.getInt(contentResolver, Settings.System.USER_ROTATION, 0)
+            val next = if (autoBefore == 1 || current == 0 || current == 2) 1 else 0
+            val autoWritten = Settings.System.putInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION, 0)
+            val rotationWritten = Settings.System.putInt(contentResolver, Settings.System.USER_ROTATION, next)
+            val savedAuto = Settings.System.getInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION, -1)
+            val savedRotation = Settings.System.getInt(contentResolver, Settings.System.USER_ROTATION, -1)
+            val success = autoWritten && rotationWritten && savedAuto == 0 && savedRotation == next
+            DiagnosticLogger.record(this, if (success) "ROTATION_SUCCEEDED" else "ROTATION_FAILED",
+                "autoBefore=$autoBefore; current=$current; target=$next; autoWritten=$autoWritten; rotationWritten=$rotationWritten; savedAuto=$savedAuto; savedRotation=$savedRotation")
+            val message = if (!success) "שינוי כיוון המסך נכשל. בדוק את הרשאת שינוי הגדרות המערכת." else if (next == 1) "המסך הוגדר לרוחב" else "המסך הוגדר לאורך"
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            DiagnosticLogger.exception(this, "ROTATION_EXCEPTION", e)
+            Toast.makeText(this, "שגיאה בשינוי כיוון המסך: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun requestScreenshot() {
@@ -118,12 +131,14 @@ class MainActivity : Activity() {
         if (requestCode != REQUEST_CAPTURE) return
         DiagnosticLogger.record(this, "SCREENSHOT_PERMISSION_RESULT", "resultCode=$resultCode; dataPresent=${data != null}")
         if (resultCode != RESULT_OK || data == null) {
-            DiagnosticLogger.record(this, "SCREENSHOT_CANCELLED", "User denied or cancelled screen capture consent")
+            DiagnosticLogger.record(this, "SCREENSHOT_CONSENT_NOT_GRANTED", "resultCode=$resultCode; dataPresent=${data != null}; Android returned RESULT_CANCELED or no consent data; no screenshot was captured")
             return
         }
         try {
             val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            DiagnosticLogger.record(this, "SCREENSHOT_CONSENT_GRANTED", "Creating MediaProjection")
             val projection = manager.getMediaProjection(resultCode, data)
+            DiagnosticLogger.record(this, "SCREENSHOT_PROJECTION_CREATED", "width=${resources.displayMetrics.widthPixels}; height=${resources.displayMetrics.heightPixels}")
             val metrics = resources.displayMetrics
             val reader = ImageReader.newInstance(metrics.widthPixels, metrics.heightPixels, PixelFormat.RGBA_8888, 2)
             var display: VirtualDisplay? = null

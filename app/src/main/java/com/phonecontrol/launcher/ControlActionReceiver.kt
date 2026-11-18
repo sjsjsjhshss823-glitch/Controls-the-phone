@@ -5,8 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.net.Uri
-import android.view.Surface
-import android.view.WindowManager
 import android.widget.Toast
 
 class ControlActionReceiver : BroadcastReceiver() {
@@ -50,30 +48,18 @@ class ControlActionReceiver : BroadcastReceiver() {
             return
         }
 
-        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val currentRotation = windowManager.defaultDisplay.rotation
-        val targetRotation = if (currentRotation == Surface.ROTATION_0 || currentRotation == Surface.ROTATION_180) {
-            Surface.ROTATION_90
-        } else {
-            Surface.ROTATION_0
-        }
-
-        val autoRotateDisabled = Settings.System.putInt(
-            context.contentResolver,
-            Settings.System.ACCELEROMETER_ROTATION,
-            0
-        )
-        val rotationWritten = Settings.System.putInt(
-            context.contentResolver,
-            Settings.System.USER_ROTATION,
-            targetRotation
-        )
+        val autoBefore = Settings.System.getInt(context.contentResolver, Settings.System.ACCELEROMETER_ROTATION, 1)
+        val currentSetting = Settings.System.getInt(context.contentResolver, Settings.System.USER_ROTATION, 0)
+        // Use the saved system setting, not physical display rotation, which may lag.
+        val targetRotation = if (autoBefore == 1 || currentSetting == 0 || currentSetting == 2) 1 else 0
+        val autoRotateDisabled = Settings.System.putInt(context.contentResolver, Settings.System.ACCELEROMETER_ROTATION, 0)
+        val rotationWritten = Settings.System.putInt(context.contentResolver, Settings.System.USER_ROTATION, targetRotation)
         val savedRotation = Settings.System.getInt(
             context.contentResolver,
             Settings.System.USER_ROTATION,
             -1
         )
-        DiagnosticLogger.record(context, if (autoRotateDisabled && rotationWritten && savedRotation == targetRotation) "ROTATION_SUCCEEDED" else "ROTATION_FAILED", "target=$targetRotation; autoRotateDisabled=$autoRotateDisabled; rotationWritten=$rotationWritten; saved=$savedRotation")
+        DiagnosticLogger.record(context, if (autoRotateDisabled && rotationWritten && savedRotation == targetRotation) "ROTATION_SUCCEEDED" else "ROTATION_FAILED", "autoBefore=$autoBefore; currentSetting=$currentSetting; target=$targetRotation; autoRotateDisabled=$autoRotateDisabled; rotationWritten=$rotationWritten; saved=$savedRotation")
         if (autoRotateDisabled && rotationWritten && savedRotation == targetRotation) {
             Toast.makeText(
                 context,

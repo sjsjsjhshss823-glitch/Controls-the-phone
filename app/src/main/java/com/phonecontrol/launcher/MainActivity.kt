@@ -50,8 +50,25 @@ class MainActivity : Activity() {
         loadApps()
         buildInterface()
         startService(Intent(this, ControlNotificationService::class.java))
+        ensureOverlayControls()
         handleControlAction(intent)
         showHome()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (Settings.canDrawOverlays(this)) {
+            startService(Intent(this, FloatingControlService::class.java))
+        }
+    }
+
+    private fun ensureOverlayControls() {
+        if (Settings.canDrawOverlays(this)) {
+            startService(Intent(this, FloatingControlService::class.java))
+        } else {
+            Toast.makeText(this, "כדי להציג את מסך השליטה מעל כל אפליקציה, יש לאשר הצגה מעל אפליקציות אחרות", Toast.LENGTH_LONG).show()
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

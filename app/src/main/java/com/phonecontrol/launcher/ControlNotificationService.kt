@@ -12,6 +12,8 @@ import android.os.IBinder
 class ControlNotificationService : Service() {
     override fun onCreate() {
         super.onCreate()
+        DiagnosticLogger.initialize(this)
+        DiagnosticLogger.record(this, "NOTIFICATION_SERVICE_CREATED", "Persistent notification service started")
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) {
             manager.createNotificationChannel(NotificationChannel(CHANNEL, "Phone Control", NotificationManager.IMPORTANCE_LOW).apply {
@@ -48,6 +50,11 @@ class ControlNotificationService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onDestroy() {
+        DiagnosticLogger.record(this, "NOTIFICATION_SERVICE_DESTROYED", "Persistent notification service stopped")
+        super.onDestroy()
+    }
 
     companion object { private const val CHANNEL = "phone_control_actions" }
 }

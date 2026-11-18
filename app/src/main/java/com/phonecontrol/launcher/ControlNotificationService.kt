@@ -33,8 +33,17 @@ class ControlNotificationService : Service() {
     }
 
     private fun action(label: String, action: String, id: Int): Notification.Action {
-        val intent = Intent(this, MainActivity::class.java).setAction(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        val pending = PendingIntent.getActivity(this, id, intent, PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0)
+        val intent = if (action == MainActivity.ACTION_SCREENSHOT) {
+            Intent(this, MainActivity::class.java).setAction(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        } else {
+            Intent(this, ControlActionReceiver::class.java).setAction(action)
+        }
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0
+        val pending = if (action == MainActivity.ACTION_SCREENSHOT) {
+            PendingIntent.getActivity(this, id, intent, flags)
+        } else {
+            PendingIntent.getBroadcast(this, id, intent, flags)
+        }
         return Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_manage), label, pending).build()
     }
 

@@ -198,7 +198,7 @@ class MainActivity : Activity() {
             textSize = 15f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
-            background = rounded(Color.rgb(43, 52, 82), 24)
+            background = rounded(Color.rgb(43, 52, 82), 24f)
             setPadding(24, 16, 24, 16)
             setOnClickListener { showDoubleTapHelp() }
         }
@@ -227,13 +227,13 @@ class MainActivity : Activity() {
         val searchRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = rounded(Color.rgb(39, 47, 72), 18)
+            background = rounded(Color.rgb(39, 47, 72), 18f)
             setPadding(12, 2, 8, 2)
         }
         search = EditText(this).apply {
-            hint = "חיפוש אפליקציות..."
+            this.hint = "חיפוש אפליקציות..."
             textSize = 16f
-            singleLine = true
+            setSingleLine(true)
             setTextColor(Color.WHITE)
             setHintTextColor(Color.rgb(158, 169, 196))
             background = null

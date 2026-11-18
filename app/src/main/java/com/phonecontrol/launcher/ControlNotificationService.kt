@@ -18,7 +18,7 @@ class ControlNotificationService : Service() {
                 description = "כפתורי שליטה מהירה בטלפון"
             })
         }
-        val notification = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CHANNEL) else @Suppress("DEPRECATION") Notification.Builder(this)
+        val notification = Notification.Builder(this).apply { if (Build.VERSION.SDK_INT >= 26) setChannelId(CHANNEL) }
         val built = notification
             .setSmallIcon(android.R.drawable.ic_menu_manage)
             .setContentTitle("Phone Control")
@@ -34,8 +34,7 @@ class ControlNotificationService : Service() {
     private fun action(label: String, action: String, id: Int): Notification.Action {
         val intent = Intent(this, MainActivity::class.java).setAction(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val pending = PendingIntent.getActivity(this, id, intent, PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0)
-        return if (Build.VERSION.SDK_INT >= 20) Notification.Action.Builder(null, label, pending).build()
-        else @Suppress("DEPRECATION") Notification.Action(0, label, pending)
+        return Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_manage), label, pending).build()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

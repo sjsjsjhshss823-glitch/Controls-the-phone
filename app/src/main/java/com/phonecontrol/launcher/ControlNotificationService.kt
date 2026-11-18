@@ -22,7 +22,7 @@ class ControlNotificationService : Service() {
         }
         val notification = Notification.Builder(this).apply { if (Build.VERSION.SDK_INT >= 26) setChannelId(CHANNEL) }
         val built = notification
-            .setSmallIcon(android.R.drawable.ic_menu_manage)
+            .setSmallIcon(R.drawable.ic_notification_phone)
             .setContentTitle("Phone Control")
             .setContentText("שליטה מהירה בטלפון")
             .setOngoing(true)
@@ -35,7 +35,7 @@ class ControlNotificationService : Service() {
     }
 
     private fun action(label: String, action: String, id: Int): Notification.Action {
-        val intent = if (action == MainActivity.ACTION_SCREENSHOT) {
+        val intent = if (action == MainActivity.ACTION_SCREENSHOT || action == MainActivity.ACTION_ROTATE) {
             Intent(this, MainActivity::class.java).setAction(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         } else {
             Intent(this, ControlActionReceiver::class.java).setAction(action)

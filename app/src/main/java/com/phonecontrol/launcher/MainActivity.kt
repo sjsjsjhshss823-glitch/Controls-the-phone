@@ -97,7 +97,7 @@ class MainActivity : Activity() {
         if (!canWrite) {
             DiagnosticLogger.record(this, "ROTATION_FAILED_PERMISSION", "WRITE_SETTINGS not granted")
             Toast.makeText(this, "יש לאשר שינוי הגדרות מערכת כדי לשלוט בסיבוב", Toast.LENGTH_LONG).show()
-            startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
+            startActivityForResult(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")), REQUEST_WRITE_SETTINGS)
             return
         }
         try {
@@ -128,6 +128,17 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated Android callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_WRITE_SETTINGS) {
+            val approved = Settings.System.canWrite(this)
+            DiagnosticLogger.record(this, if (approved) "ROTATION_PERMISSION_APPROVED" else "ROTATION_PERMISSION_DENIED", "canWrite=$approved; resultCode=$resultCode")
+            if (approved) {
+                Toast.makeText(this, "האישור התקבל. מבצע שינוי כיוון מסך…", Toast.LENGTH_SHORT).show()
+                toggleRotation()
+            } else {
+                Toast.makeText(this, "לא אושרה הרשאת שינוי הגדרות מערכת. יש להפעיל את המתג עבור Phone Control.", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
         if (requestCode != REQUEST_CAPTURE) return
         DiagnosticLogger.record(this, "SCREENSHOT_PERMISSION_RESULT", "resultCode=$resultCode; dataPresent=${data != null}")
         if (resultCode != RESULT_OK || data == null) {
@@ -442,6 +453,7 @@ class MainActivity : Activity() {
         const val ACTION_ROTATE = "com.phonecontrol.ACTION_ROTATE"
         const val ACTION_SCREENSHOT = "com.phonecontrol.ACTION_SCREENSHOT"
         private const val REQUEST_CAPTURE = 741
+        private const val REQUEST_WRITE_SETTINGS = 742
     }
 
     private fun rounded(color: Int, radius: Float) = GradientDrawable().apply {

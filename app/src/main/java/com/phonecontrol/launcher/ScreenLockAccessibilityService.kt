@@ -6,6 +6,8 @@ import android.view.accessibility.AccessibilityEvent
 class ScreenLockAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
+        DiagnosticLogger.initialize(this)
+        DiagnosticLogger.record(this, "ACCESSIBILITY_SERVICE_CONNECTED", "Screen lock and power dialog actions available")
         activeService = this
     }
 
@@ -18,6 +20,7 @@ class ScreenLockAccessibilityService : AccessibilityService() {
     fun showSystemPowerMenu(): Boolean = performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
 
     override fun onDestroy() {
+        DiagnosticLogger.record(this, "ACCESSIBILITY_SERVICE_DESTROYED", "Accessibility service disconnected")
         if (activeService === this) activeService = null
         super.onDestroy()
     }

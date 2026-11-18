@@ -74,10 +74,12 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
             return
         }
-        val enabled = Settings.System.getInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION, 0) == 1
-        Settings.System.putInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION, if (enabled) 0 else 1)
-        if (enabled) Settings.System.putInt(contentResolver, Settings.System.USER_ROTATION, 0)
-        Toast.makeText(this, if (enabled) "סיבוב אוטומטי כבוי – מצב לאורך" else "סיבוב אוטומטי מופעל", Toast.LENGTH_SHORT).show()
+        val auto = Settings.System.getInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION, 1) == 1
+        val current = Settings.System.getInt(contentResolver, Settings.System.USER_ROTATION, 0)
+        val next = if (auto || current == 0) 1 else 0
+        Settings.System.putInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION, 0)
+        Settings.System.putInt(contentResolver, Settings.System.USER_ROTATION, next)
+        Toast.makeText(this, if (next == 1) "המסך נעול לרוחב" else "המסך נעול לאורך", Toast.LENGTH_SHORT).show()
     }
 
     private fun requestScreenshot() {

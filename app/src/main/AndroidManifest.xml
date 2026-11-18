@@ -32,6 +32,7 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+        <receiver android:name=".ControlActionReceiver" android:exported="false" />
         <service android:name=".ControlNotificationService" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Persistent notification with user-invoked phone controls" />
         </service>

@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Phone Control</string>
+    <string name="accessibility_description">מאפשר ל-Phone Control לנעול את המסך לאחר הקשה כפולה, לפי בחירתך.</string>
+</resources>

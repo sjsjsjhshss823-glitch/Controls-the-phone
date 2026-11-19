@@ -26,15 +26,15 @@ class ControlNotificationService : Service() {
             .setContentTitle("Phone Control")
             .setContentText("שליטה מהירה בטלפון")
             .setOngoing(true)
-            .addAction(action("🔴 כיבוי", MainActivity.ACTION_POWER_MENU, 4))
-            .addAction(action("🔒 נעילה", MainActivity.ACTION_LOCK, 1))
-            .addAction(action("🔄 סיבוב", MainActivity.ACTION_ROTATE, 2))
-            .addAction(action("📸 צילום מסך", MainActivity.ACTION_SCREENSHOT, 3))
+            .addAction(action("⏻", MainActivity.ACTION_POWER_MENU, 4, android.R.drawable.ic_lock_power_off))
+            .addAction(action("🔒", MainActivity.ACTION_LOCK, 1, android.R.drawable.ic_lock_lock))
+            .addAction(action("↻", MainActivity.ACTION_ROTATE, 2, android.R.drawable.ic_menu_rotate))
+            .addAction(action("📷", MainActivity.ACTION_SCREENSHOT, 3, android.R.drawable.ic_menu_camera))
             .build()
         startForeground(41, built)
     }
 
-    private fun action(label: String, action: String, id: Int): Notification.Action {
+    private fun action(label: String, action: String, id: Int, iconRes: Int): Notification.Action {
         val intent = if (action == MainActivity.ACTION_SCREENSHOT || action == MainActivity.ACTION_ROTATE) {
             Intent(this, MainActivity::class.java).setAction(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         } else {
@@ -46,7 +46,7 @@ class ControlNotificationService : Service() {
         } else {
             PendingIntent.getBroadcast(this, id, intent, flags)
         }
-        return Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_manage), label, pending).build()
+        return Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, iconRes), label, pending).build()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

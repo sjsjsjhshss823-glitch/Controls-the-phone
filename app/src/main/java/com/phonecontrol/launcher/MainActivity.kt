@@ -39,6 +39,9 @@ class MainActivity : Activity() {
     private var downX = 0f
     private var lastTap = 0L
     private var gridColumns = 5
+    private var homePageIndex = 0
+    private lateinit var homeContent: LinearLayout
+    private lateinit var pageDots: TextView
 
     private data class AppEntry(val label: String, val packageName: String, val icon: android.graphics.drawable.Drawable)
     private val allApps = mutableListOf<AppEntry>()
@@ -210,60 +213,44 @@ class MainActivity : Activity() {
         homePanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(28, 30, 28, 36)
+            setPadding(22, 22, 22, 18)
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(33, 38, 72), Color.rgb(75, 52, 107), Color.rgb(18, 35, 58))).apply { cornerRadius = 0f }
         }
         val clock = TextView(this).apply {
-            text = "PHONE CONTROL"
-            textSize = 13f
-            letterSpacing = 0.18f
-            setTextColor(Color.rgb(158, 174, 215))
-            gravity = Gravity.CENTER
+            text = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+            textSize = 76f
+            typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
+            setTextColor(Color.WHITE); gravity = Gravity.CENTER
         }
-        val title = TextView(this).apply {
-            text = "הטלפון שלך.\nבשליטה שלך."
-            textSize = 34f
-            typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setPadding(0, 24, 0, 12)
+        val date = TextView(this).apply {
+            text = java.text.SimpleDateFormat("EEEE, d MMMM yyyy", java.util.Locale("he", "IL")).format(java.util.Date())
+            textSize = 17f; setTextColor(Color.rgb(238, 232, 247)); gravity = Gravity.CENTER
         }
-        val hint = TextView(this).apply {
-            text = "החלק למעלה כדי לפתוח את כל האפליקציות"
-            textSize = 16f
-            setTextColor(Color.rgb(190, 199, 222))
+        homePanel.addView(clock, LinearLayout.LayoutParams(-1, -2))
+        homePanel.addView(date, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 4 })
+        homeContent = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
+            layoutDirection = View.LAYOUT_DIRECTION_LTR
         }
-        val handle = TextView(this).apply {
-            text = "⌃"
-            textSize = 34f
-            setTextColor(Color.rgb(133, 151, 255))
-            gravity = Gravity.CENTER
-            setPadding(0, 48, 0, 0)
+        homePanel.addView(homeContent, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = 24 })
+        pageDots = TextView(this).apply {
+            text = "●  ○  ○  ○"
+            textSize = 18f; gravity = Gravity.CENTER; setTextColor(Color.rgb(105, 205, 246))
+            setPadding(0, 8, 0, 6)
         }
-        val settings = TextView(this).apply {
-            text = "הגדרות הקשה כפולה  ⚙"
-            textSize = 15f
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = rounded(Color.rgb(43, 52, 82), 24f)
-            setPadding(24, 16, 24, 16)
-            setOnClickListener { showDoubleTapHelp() }
+        homePanel.addView(pageDots)
+        val quickControls = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+            setPadding(0, 6, 0, 2)
         }
-        val diagnostics = TextView(this).apply {
-            text = "🐞  דיווח שגיאה — העתקת דוח מלא"
-            textSize = 15f
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = rounded(Color.rgb(125, 48, 58), 24f)
-            setPadding(18, 16, 18, 16)
-            setOnClickListener { DiagnosticLogger.copyReport(this@MainActivity) }
-        }
-        homePanel.addView(clock)
-        homePanel.addView(title)
-        homePanel.addView(hint)
-        homePanel.addView(handle)
-        homePanel.addView(settings, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 34 })
-        homePanel.addView(diagnostics, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 12 })
+        quickControls.addView(homeControl("⏻", "תפריט כיבוי") { showSystemPowerMenu() }, LinearLayout.LayoutParams(0, 54, 1f))
+        quickControls.addView(homeControl("🔒", "נעילת מסך") { lockScreen() }, LinearLayout.LayoutParams(0, 54, 1f))
+        quickControls.addView(homeControl("↻", "סיבוב מסך") { toggleRotation() }, LinearLayout.LayoutParams(0, 54, 1f))
+        quickControls.addView(homeControl("📷", "צילום מסך") { requestScreenshot() }, LinearLayout.LayoutParams(0, 54, 1f))
+        homePanel.addView(quickControls, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
+        renderHomePage()
         homePanel.setOnTouchListener { _, event -> handleHomeTouch(event) }
         root.addView(homePanel, FrameLayout.LayoutParams(-1, -1))
 
@@ -363,16 +350,55 @@ class MainActivity : Activity() {
         setContentView(root)
     }
 
+    private fun homeControl(symbol: String, description: String, action: () -> Unit): View {
+        return TextView(this).apply {
+            text = symbol; textSize = 24f; gravity = Gravity.CENTER
+            setTextColor(Color.WHITE); contentDescription = description; isClickable = true; isFocusable = true
+            background = rounded(Color.rgb(44, 53, 79), 22f)
+            setPadding(6, 6, 6, 6)
+            setOnClickListener { DiagnosticLogger.record(this@MainActivity, "HOME_CONTROL_TAPPED", "control=$description"); action() }
+        }
+    }
+
+    private fun renderHomePage() {
+        homeContent.removeAllViews()
+        val preferred = if (homePageIndex == 0)
+            listOf("Gallery", "Photos", "Camera", "Phone", "Contacts", "Chrome")
+        else
+            listOf("Settings", "Play Store", "ChatGPT", "Messages", "Clock", "Files")
+        val chosen = preferred.mapNotNull { key -> allApps.firstOrNull { it.label.contains(key, true) } }
+            .distinctBy { it.packageName }.take(6)
+        val grid = GridLayout(this).apply { columnCount = 3; useDefaultMargins = false }
+        chosen.forEach { app ->
+            val cell = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+                setPadding(8, 12, 8, 12); isClickable = true
+                setOnClickListener {
+                    DiagnosticLogger.record(this@MainActivity, "HOME_SHORTCUT_TAPPED", "label=${app.label}; package=${app.packageName}")
+                    packageManager.getLaunchIntentForPackage(app.packageName)?.let { startActivity(it) }
+                }
+            }
+            val icon = ImageView(this).apply { setImageDrawable(app.icon); scaleType = ImageView.ScaleType.FIT_CENTER }
+            cell.addView(icon, LinearLayout.LayoutParams(66, 66))
+            val label = TextView(this).apply { text = app.label; textSize = 13f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, 7, 0, 0) }
+            cell.addView(label, LinearLayout.LayoutParams(-1, -2))
+            grid.addView(cell, GridLayout.LayoutParams().apply { width = 0; height = -2; columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f) })
+        }
+        homeContent.addView(grid, LinearLayout.LayoutParams(-1, -2))
+        pageDots.text = if (homePageIndex == 0) "●  ○  ○  ○" else "○  ●  ○  ○"
+    }
+
     private fun handleHomeTouch(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> { downY = event.y; downX = event.x; return true }
             MotionEvent.ACTION_UP -> {
                 val dy = event.y - downY
-                if (dy < -65) openDrawer()
-                else if (abs(dy) < 12 && abs(event.x - downX) < 12) {
-                    val now = System.currentTimeMillis()
-                    if (now - lastTap < 350) lockScreen()
-                    lastTap = now
+                val dx = event.x - downX
+                if (dy < -65) { DiagnosticLogger.record(this, "HOME_SWIPE_UP", "opening in-app drawer"); openDrawer() }
+                else if (abs(dx) > 70 && abs(dy) < 55) {
+                    homePageIndex = if (dx < 0) 1 else 0
+                    renderHomePage()
+                    DiagnosticLogger.record(this, "HOME_PAGE_SWIPED", "page=$homePageIndex; dx=$dx")
                 }
                 return true
             }

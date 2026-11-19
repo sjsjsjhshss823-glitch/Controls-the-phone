@@ -88,6 +88,8 @@ object DiagnosticLogger {
         val activeNetwork = try { cm.activeNetworkInfo?.let { "connected=${it.isConnected}, type=${it.typeName}, state=${it.state}" } ?: "none" } catch (e: Exception) { "error: ${e.message}" }
         val touchExplorationEnabled = try { (app.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager).isTouchExplorationEnabled } catch (e: Exception) { "error: ${e.message}" }
         val serviceConnected = ScreenLockAccessibilityService.activeService != null
+        val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val selectedHome = try { pm.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName ?: "unknown" } catch (e: Exception) { "error: ${e.message}" }
         val accessibilityEnabled = try {
             Settings.Secure.getInt(app.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1
         } catch (_: Exception) { false }
@@ -130,7 +132,9 @@ object DiagnosticLogger {
             appendLine("Enabled accessibility services: $enabledServices")
             appendLine("Touch exploration mode active: $touchExplorationEnabled")
             appendLine("Phone Control accessibility service connected in process: $serviceConnected")
-            appendLine("Double-tap detection: disabled; touch exploration is not requested")
+            appendLine("Selected default HOME launcher: $selectedHome")
+            appendLine("Phone Control HOME launcher option: enabled in manifest; default is not changed automatically")
+            appendLine("Double-tap detection: only handled on Phone Control launcher home screen; no touch-exploration gesture interception")
             appendLine("Phone Control no longer requests Touch Exploration to avoid disrupting system-wide touch.")
             appendLine("Overlay permission: ${Settings.canDrawOverlays(app)}")
             appendLine("Write system settings permission: ${Settings.System.canWrite(app)}")

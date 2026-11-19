@@ -328,6 +328,9 @@ class MainActivity : Activity() {
                 setOnClickListener {
                     gridColumns = columns
                     getSharedPreferences("phone_control_layout", MODE_PRIVATE).edit().putInt("grid_columns", columns).apply()
+                    // Clear children before changing GridLayout's column count.
+                    // Existing child specs may retain indices/spans incompatible with the new count.
+                    appsGrid.removeAllViews()
                     appsGrid.columnCount = gridColumns
                     refreshLayoutButtons()
                     renderApps(search.text?.toString().orEmpty())

@@ -42,6 +42,7 @@ class MainActivity : Activity() {
     private var homePageIndex = 0
     private lateinit var homeContent: LinearLayout
     private lateinit var pageDots: TextView
+    private var selectedBackgroundUri: Uri? = null
 
     private data class AppEntry(val label: String, val packageName: String, val icon: android.graphics.drawable.Drawable)
     private val allApps = mutableListOf<AppEntry>()
@@ -54,6 +55,7 @@ class MainActivity : Activity() {
         window.navigationBarColor = Color.rgb(15, 19, 35)
         window.decorView.systemUiVisibility = 0
         gridColumns = getSharedPreferences("phone_control_layout", MODE_PRIVATE).getInt("grid_columns", 5).coerceIn(4, 6)
+        selectedBackgroundUri = getSharedPreferences("phone_control_layout", MODE_PRIVATE).getString("home_background_uri", null)?.let { Uri.parse(it) }
         loadApps()
         buildInterface()
         startService(Intent(this, ControlNotificationService::class.java))
@@ -130,6 +132,26 @@ class MainActivity : Activity() {
                 toggleRotation()
             } else {
                 Toast.makeText(this, "לא אושרה הרשאת שינוי הגדרות מערכת. יש להפעיל את המתג עבור Phone Control.", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        if (requestCode == REQUEST_HOME_BACKGROUND) {
+            if (resultCode != RESULT_OK || data?.data == null) {
+                DiagnosticLogger.record(this, "HOME_BACKGROUND_SELECTION_CANCELLED", "resultCode=$resultCode")
+                return
+            }
+            val uri = data.data!!
+            try {
+                val flags = data.flags and (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                contentResolver.takePersistableUriPermission(uri, flags)
+                selectedBackgroundUri = uri
+                getSharedPreferences("phone_control_layout", MODE_PRIVATE).edit().putString("home_background_uri", uri.toString()).apply()
+                applySavedHomeBackground()
+                DiagnosticLogger.record(this, "HOME_BACKGROUND_SELECTED", "uri=$uri; flags=$flags")
+                Toast.makeText(this, "הרקע נשמר בהצלחה", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                DiagnosticLogger.exception(this, "HOME_BACKGROUND_SAVE_FAILED", e)
+                Toast.makeText(this, "שמירת הרקע נכשלה", Toast.LENGTH_LONG).show()
             }
             return
         }
@@ -250,6 +272,14 @@ class MainActivity : Activity() {
         quickControls.addView(homeControl(android.R.drawable.ic_menu_rotate, "סיבוב מסך") { toggleRotation() }, LinearLayout.LayoutParams(0, 54, 1f))
         quickControls.addView(homeControl(android.R.drawable.ic_menu_camera, "צילום מסך") { requestScreenshot() }, LinearLayout.LayoutParams(0, 54, 1f))
         homePanel.addView(quickControls, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
+        val wallpaperButton = TextView(this).apply {
+            text = "🖼️  בחירת רקע"
+            textSize = 14f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            background = rounded(Color.rgb(58, 68, 98), 20f); setPadding(16, 9, 16, 9)
+            setOnClickListener { chooseHomeBackground() }
+        }
+        homePanel.addView(wallpaperButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
+        applySavedHomeBackground()
         renderHomePage()
         homePanel.setOnTouchListener { _, event -> handleHomeTouch(event) }
         root.addView(homePanel, FrameLayout.LayoutParams(-1, -1))
@@ -348,6 +378,43 @@ class MainActivity : Activity() {
             override fun afterTextChanged(s: Editable?) = Unit
         })
         setContentView(root)
+    }
+
+    private fun chooseHomeBackground() {
+        DiagnosticLogger.record(this, "HOME_BACKGROUND_PICKER_OPENED", "launch ACTION_OPEN_DOCUMENT image picker")
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "image/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        try {
+            @Suppress("DEPRECATION") startActivityForResult(intent, REQUEST_HOME_BACKGROUND)
+        } catch (e: Exception) {
+            DiagnosticLogger.exception(this, "HOME_BACKGROUND_PICKER_FAILED", e)
+            Toast.makeText(this, "לא ניתן לפתוח את בחירת התמונות", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun applySavedHomeBackground() {
+        val uri = selectedBackgroundUri
+        if (uri == null) {
+            homePanel.background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(33, 38, 72), Color.rgb(75, 52, 107), Color.rgb(18, 35, 58)))
+            return
+        }
+        try {
+            val drawable = contentResolver.openInputStream(uri)?.use { android.graphics.drawable.Drawable.createFromStream(it, null) }
+            if (drawable != null) {
+                if (drawable is android.graphics.drawable.BitmapDrawable) drawable.gravity = Gravity.FILL
+                homePanel.background = drawable
+                DiagnosticLogger.record(this, "HOME_BACKGROUND_APPLIED", "uri=$uri")
+            } else {
+                DiagnosticLogger.record(this, "HOME_BACKGROUND_LOAD_FAILED", "uri=$uri; stream returned no drawable")
+            }
+        } catch (e: Exception) {
+            DiagnosticLogger.exception(this, "HOME_BACKGROUND_LOAD_EXCEPTION", e)
+            Toast.makeText(this, "לא ניתן לטעון את תמונת הרקע שנשמרה", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun homeControl(iconRes: Int, description: String, action: () -> Unit): View {
@@ -523,6 +590,7 @@ class MainActivity : Activity() {
         const val ACTION_SCREENSHOT = "com.phonecontrol.ACTION_SCREENSHOT"
         private const val REQUEST_CAPTURE = 741
         private const val REQUEST_WRITE_SETTINGS = 742
+        private const val REQUEST_HOME_BACKGROUND = 743
     }
 
     private fun rounded(color: Int, radius: Float) = GradientDrawable().apply {

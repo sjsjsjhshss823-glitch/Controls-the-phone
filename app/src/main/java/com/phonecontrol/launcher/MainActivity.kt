@@ -245,10 +245,10 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
             setPadding(0, 6, 0, 2)
         }
-        quickControls.addView(homeControl("⏻", "תפריט כיבוי") { showSystemPowerMenu() }, LinearLayout.LayoutParams(0, 54, 1f))
-        quickControls.addView(homeControl("🔒", "נעילת מסך") { lockScreen() }, LinearLayout.LayoutParams(0, 54, 1f))
-        quickControls.addView(homeControl("↻", "סיבוב מסך") { toggleRotation() }, LinearLayout.LayoutParams(0, 54, 1f))
-        quickControls.addView(homeControl("📷", "צילום מסך") { requestScreenshot() }, LinearLayout.LayoutParams(0, 54, 1f))
+        quickControls.addView(homeControl(android.R.drawable.ic_lock_power_off, "תפריט כיבוי") { showSystemPowerMenu() }, LinearLayout.LayoutParams(0, 54, 1f))
+        quickControls.addView(homeControl(android.R.drawable.ic_lock_lock, "נעילת מסך") { lockScreen() }, LinearLayout.LayoutParams(0, 54, 1f))
+        quickControls.addView(homeControl(android.R.drawable.ic_menu_rotate, "סיבוב מסך") { toggleRotation() }, LinearLayout.LayoutParams(0, 54, 1f))
+        quickControls.addView(homeControl(android.R.drawable.ic_menu_camera, "צילום מסך") { requestScreenshot() }, LinearLayout.LayoutParams(0, 54, 1f))
         homePanel.addView(quickControls, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
         renderHomePage()
         homePanel.setOnTouchListener { _, event -> handleHomeTouch(event) }
@@ -350,12 +350,16 @@ class MainActivity : Activity() {
         setContentView(root)
     }
 
-    private fun homeControl(symbol: String, description: String, action: () -> Unit): View {
-        return TextView(this).apply {
-            text = symbol; textSize = 24f; gravity = Gravity.CENTER
-            setTextColor(Color.WHITE); contentDescription = description; isClickable = true; isFocusable = true
+    private fun homeControl(iconRes: Int, description: String, action: () -> Unit): View {
+        return FrameLayout(this).apply {
             background = rounded(Color.rgb(44, 53, 79), 22f)
-            setPadding(6, 6, 6, 6)
+            contentDescription = description; isClickable = true; isFocusable = true
+            val icon = ImageView(this@MainActivity).apply {
+                setImageResource(iconRes)
+                setColorFilter(Color.WHITE)
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+            }
+            addView(icon, FrameLayout.LayoutParams(32, 32, Gravity.CENTER))
             setOnClickListener { DiagnosticLogger.record(this@MainActivity, "HOME_CONTROL_TAPPED", "control=$description"); action() }
         }
     }
